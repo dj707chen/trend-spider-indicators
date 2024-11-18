@@ -16,54 +16,49 @@ const long_l1 = input.number('Long - L1', 20);
 const long_l2 = input.number('Long - L2', 2);
 let shortTermXtrender = sub(rsi(sub(ema(close, short_l1), ema(close, short_l2)), short_l3),50);
 
-if(showHistogram)
-{
-	let shortXtrenderCol = [];
-	shortXtrenderCol.push(null);
-	for (let i = 1; i < shortTermXtrender.length; i++) {
-	    if (shortTermXtrender[i] > 0) {
-			if (shortTermXtrender[i] > shortTermXtrender[i-1])
-				shortXtrenderCol.push(`rgba(0, 230, 118, 0.5)`); // bright green 50% opaque
-			else
-				shortXtrenderCol.push(`rgba(34, 138, 34, 0.5)`); //dark green 50% opaque
-		} else
-		{
-			if (shortTermXtrender[i] > shortTermXtrender[i-1])
-				shortXtrenderCol.push(`rgba(255, 82, 82, 0.5)`); //bright red
-			else
-				shortXtrenderCol.push(`rgba(139, 00, 00, 0.5)`); //dark red
-		}
+let shortXtrenderCol = [];
+shortXtrenderCol.push(null);
+for (let i = 1; i < shortTermXtrender.length; i++) {
+	if (shortTermXtrender[i] > 0) {
+		if (shortTermXtrender[i] > shortTermXtrender[i-1])
+			shortXtrenderCol.push(`rgba(0, 230, 118, 0.5)`); // bright green 50% opaque
+		else
+			shortXtrenderCol.push(`rgba(34, 138, 34, 0.5)`); //dark green 50% opaque
+	} else
+	{
+		if (shortTermXtrender[i] > shortTermXtrender[i-1])
+			shortXtrenderCol.push(`rgba(255, 82, 82, 0.5)`); //bright red
+		else
+			shortXtrenderCol.push(`rgba(139, 00, 00, 0.5)`); //dark red
 	}
-	
+}
+
+if(showHistogram)
 	paint(shortTermXtrender, {
 		name: "B-Xtrender Osc. - Histogram",
 		color: shortXtrenderCol,
 		style: 'column',
 		thickness: 1
 	});
-}
 
-if(showTrendLine)
-{
-	let longTermXtrender  = sub(rsi(ema(close, long_l1), long_l2 ),50);
-	let macollongXtrenderCol = [];
-	macollongXtrenderCol.push(null);
-	for (let i = 2; i < longTermXtrender.length; i++) {
-		if (longTermXtrender[i] > longTermXtrender[i-1])
-			macollongXtrenderCol.push(`rgba(0, 230, 118, 0.2)`); // bright green 20% opaque
-		else
-			macollongXtrenderCol.push(`rgba(255, 82, 82, 0.2)`); //bright red 20% opaque
-	}
-	macollongXtrenderCol.push(null);
+let longTermXtrender  = sub(rsi(ema(close, long_l1), long_l2 ),50);
+let macollongXtrenderCol = [];
+macollongXtrenderCol.push(null);
+for (let i = 2; i < longTermXtrender.length; i++) {
+	if (longTermXtrender[i] > longTermXtrender[i-1])
+		macollongXtrenderCol.push(`rgba(0, 230, 118, 0.2)`); // bright green 20% opaque
+	else
+		macollongXtrenderCol.push(`rgba(255, 82, 82, 0.2)`); //bright red 20% opaque
+}
+macollongXtrenderCol.push(null);
 	
-	//plot(longTermXtrender , color=macollongXtrenderCol, style=plot.style_line, linewidth=3, title="B-Xtrender Trend - Line", transp = 80)
+if(showTrendLine)
 	paint(longTermXtrender, {
 		name: "B-Xtrender Trend - Line",
 		color: macollongXtrenderCol,
 		style: 'line',
 		thickness: 3
 	});
-}
 
 function t3(src, len) {
   let xe1_1 = ema(src, len);
@@ -84,23 +79,49 @@ function t3(src, len) {
     return nT3Average_1;
 }
 
+
+let maShortTermXtrender = t3( shortTermXtrender , 5 )
+let colShortTermXtrender = [];
+colShortTermXtrender.push(null);
+for (let i = 2; i < maShortTermXtrender.length; i++) {
+	if (maShortTermXtrender[i] > maShortTermXtrender[i-1])
+		colShortTermXtrender.push(`rgba(0, 230, 118, 0.2)`); // bright green 20% opaque
+	else
+		colShortTermXtrender.push(`rgba(255, 82, 82, 0.2)`); //bright red 20% opaque
+}
+colShortTermXtrender.push(null);
+
 if(showColorLine)
-{
-	let maShortTermXtrender = t3( shortTermXtrender , 5 )
-	let colShortTermXtrender = [];
-	colShortTermXtrender.push(null);
-	for (let i = 2; i < maShortTermXtrender.length; i++) {
-		if (maShortTermXtrender[i] > maShortTermXtrender[i-1])
-			colShortTermXtrender.push(`rgba(0, 230, 118, 0.2)`); // bright green 20% opaque
-		else
-			colShortTermXtrender.push(`rgba(255, 82, 82, 0.2)`); //bright red 20% opaque
-	}
-	colShortTermXtrender.push(null);
-	
 	paint(maShortTermXtrender, {
 		name: "B-Xtrender Color - Line",
 		color: colShortTermXtrender,
 		style: 'line',
 		thickness: 3
 	});
+
+let bullSwitch = Array(maShortTermXtrender.length).fill(null);
+let bearSwitch = Array(maShortTermXtrender.length).fill(null);
+// Start from index 2 since we need to look back 2 positions
+for (let i = 2; i < maShortTermXtrender.length; i++) {
+	const cur = maShortTermXtrender[i];
+	const prev = maShortTermXtrender[i-1];
+	const twoBefore = maShortTermXtrender[i-2];
+	
+	if (cur > prev && prev < twoBefore) {
+		bullSwitch[i] = cur;
+	} else {
+		bullSwitch[i] = null;
+	}
+	if (cur < prev && prev > twoBefore) {
+		bearSwitch[i] = cur;
+	} else {
+		bearSwitch[i] = null;
+	}
+}
+
+const showShapes = input.boolean("Show Shapes", true)
+if(showShapes)
+{
+	paint(bullSwitch, { name: "Shapes - Bull Switch", style: 'dotted', thickness: 8, color: `rgba(0, 230, 118, 0.2)` });
+	paint(bearSwitch, { name: "Shapes - Bear Switch", style: 'dotted', thickness: 8, color: `rgba(255, 82, 82, 0.2)` });
 }
