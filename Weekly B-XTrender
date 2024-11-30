@@ -1,10 +1,15 @@
-// This script had been cloned from "B-XTrender" at 25 Nov 2024, 00:43
+/*
+This version of B-XTrender uses a fixed weekly timeframe no matter what you selct on the chart.
+Only use on time frames lower than Weekly
+Original B-XTrender uses close prices this uses open to avoid forwarding looking when backtesting
+This is also shifted back by 1 week to avoid forward looking when backtesting
+
+*/
 //Ported by Colin Weber from Tradingview: B-Xtrender @Puppytherapy v3
 //All credit to original author https://www.tradingview.com/script/YHZimEz8-B-Xtrender-Puppytherapy/ 
 //and https://ifta.org/public/files/journal/d_ifta_journal_19.pdf IFTA Journal by Bharat Jhunjhunwala
 //
-describe_indicator('Weekly B-XTrender','lower');
-
+describe_indicator('Weekly B-XTrender Shifted/Open Prices','lower');
 // Inputs
 const short_l1 = input.number('Short - L1', 2);
 const short_l2 = input.number('Short - L2', 20);
@@ -17,9 +22,15 @@ const long_l1 = input.number('Long - L1', 20);
 const long_l2 = input.number('Long - L2', 2);
 
 //Get weekly price data
-const priceData = await request.history(current.ticker, 'W',{ chart_type: "candles", ext_session: false });
+const priceDataRaw = await request.history(current.ticker, 'W',{ chart_type: "candles", ext_session: false });
+const priceData = shift(priceDataRaw.open, -1);
+/*After asking trendspider devs how to make this indicator safe to use for backtesting they indicated to do 3 things:
+1: Use interpolate_sparse_series constant mode 
+2: shift W data by 1 candle to the right (so for the current week use LAST week data)
+3: use Open prices of W candles only. no High, no Low, no Close, just Open."
+*/
 
-let shortTermXtrender = sub(rsi(sub(ema(priceData.close, short_l1), ema(priceData.close, short_l2)), short_l3),50);
+let shortTermXtrender = sub(rsi(sub(ema(priceData, short_l1), ema(priceData, short_l2)), short_l3),50);
 let shortXtrenderCol = [];
 shortXtrenderCol.push(null);
 for (let i = 1; i < shortTermXtrender.length; i++) {
@@ -38,8 +49,8 @@ for (let i = 1; i < shortTermXtrender.length; i++) {
 }
 
 //Land and interpolate on current timeframe
-const shortTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceData.time, shortTermXtrender, time),"constant")
-const shortXtrenderCol_interp = interpolate_sparse_series(land_points_onto_series(priceData.time, shortXtrenderCol, time),"constant")
+const shortTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceDataRaw.time, shortTermXtrender, time),"constant")
+const shortXtrenderCol_interp = interpolate_sparse_series(land_points_onto_series(priceDataRaw.time, shortXtrenderCol, time),"constant")
 if(showHistogram)
 	paint(shortTermXtrender_interp, {
 		name: "Weekly B-Xtrender Osc. - Histogram",
@@ -48,7 +59,7 @@ if(showHistogram)
 		thickness: 1
 	});
 
-let longTermXtrender  = sub(rsi(ema(priceData.close, long_l1), long_l2 ),50);
+let longTermXtrender  = sub(rsi(ema(priceData, long_l1), long_l2 ),50);
 let macollongXtrenderCol = [];
 macollongXtrenderCol.push(null);
 for (let i = 2; i < longTermXtrender.length; i++) {
@@ -60,8 +71,8 @@ for (let i = 2; i < longTermXtrender.length; i++) {
 macollongXtrenderCol.push(null);
 
 //Land and interpolate on current timeframe
-const longTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceData.time, longTermXtrender, time),"constant")
-const macollongXtrenderCol_interp = interpolate_sparse_series(land_points_onto_series(priceData.time, macollongXtrenderCol, time),"constant")
+const longTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceDataRaw.time, longTermXtrender, time),"constant")
+const macollongXtrenderCol_interp = interpolate_sparse_series(land_points_onto_series(priceDataRaw.time, macollongXtrenderCol, time),"constant")
 	
 if(showTrendLine)
 	paint(longTermXtrender_interp, {
@@ -103,8 +114,8 @@ for (let i = 2; i < maShortTermXtrender.length; i++) {
 colShortTermXtrender.push(null);
 
 //Land and interpolate on current timeframe
-const maShortTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceData.time, maShortTermXtrender, time),"constant")
-const colShortTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceData.time, colShortTermXtrender, time),"constant")
+const maShortTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceDataRaw.time, maShortTermXtrender, time),"constant")
+const colShortTermXtrender_interp = interpolate_sparse_series(land_points_onto_series(priceDataRaw.time, colShortTermXtrender, time),"constant")
 
 if(showColorLine)
 	paint(maShortTermXtrender_interp, {
@@ -127,7 +138,7 @@ for (let i = 0; i < colShortTermXtrender_interp.length; i++) {
 if(showColorBooleanLine)
 {
 	let p_bb = paint(BullBearInd,{
-  name:  "Color - Boolean Line (70=Green, -70=Red)",
+  name:  "Weekly B-Xtrender Color - Boolean Line (70=Green, -70=Red)",
   color: "white",
   style: 'line',
   thickness: 1});
@@ -153,8 +164,8 @@ for (let i = 2; i < maShortTermXtrender.length; i++) {
 	}
 }
 
-const bullSwitch_interp = land_points_onto_series(priceData.time, bullSwitch, time)
-const bearSwitch_interp = land_points_onto_series(priceData.time, bearSwitch, time)
+const bullSwitch_interp = land_points_onto_series(priceDataRaw.time, bullSwitch, time)
+const bearSwitch_interp = land_points_onto_series(priceDataRaw.time, bearSwitch, time)
 debugger;
 function getExtendCount(timeframe) {
     // Get the current timeframe and set appropriate extend count
